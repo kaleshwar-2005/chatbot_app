@@ -1,8 +1,70 @@
 const inputEl = document.getElementById('userInput');
 const btnEl = document.getElementById('sendBtn');
 const chatContainerEl = document.getElementById('chatBox');
+const sidebarToggle = document.getElementById('sidebarToggle');
+const sidebar = document.getElementById('sidebar');
+const newChatBtn = document.getElementById('newChatBtn');
+const loadingOverlay = document.getElementById('loadingOverlay');
+
+// Model selection elements
+const settingsBtn = document.getElementById('settingsBtn');
+const modelModal = document.getElementById('modelModal');
+const closeModelModal = document.getElementById('closeModelModal');
+const modelSelect = document.getElementById('modelSelect');
+const currentModelDisplay = document.getElementById('currentModelDisplay');
+const saveModelBtn = document.getElementById('saveModelBtn');
+const cancelModelBtn = document.getElementById('cancelModelBtn');
+
+// Add scroll to bottom button logic
 const formEl = document.getElementById('chatForm');
 const scrollToBottomBtn = document.getElementById('scrollToBottom');
+
+// Sidebar functionality
+sidebarToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('show');
+});
+
+// Close sidebar when clicking outside on mobile
+document.addEventListener('click', (e) => {
+    if (window.innerWidth <= 768) {
+        if (!sidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
+            sidebar.classList.remove('show');
+        }
+    }
+});
+
+// New chat functionality
+newChatBtn.addEventListener('click', () => {
+    clearChat();
+    updateChatTitle('New Chat');
+});
+
+// Suggestion chips functionality
+document.querySelectorAll('.suggestion-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        const prompt = chip.getAttribute('data-prompt');
+        inputEl.value = prompt;
+        inputEl.focus();
+        btnEl.disabled = false;
+    });
+});
+
+// Auto-resize textarea
+inputEl.addEventListener('input', () => {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+    btnEl.disabled = !inputEl.value.trim();
+});
+
+// Enter to send (Shift+Enter for new line)
+inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!btnEl.disabled) {
+            createQueryAndResponse();
+        }
+    }
+});
 
 // Show/hide scroll to bottom button
 chatContainerEl.addEventListener('scroll', () => {
@@ -20,6 +82,31 @@ scrollToBottomBtn.addEventListener('click', () => {
         behavior: 'smooth'
     });
 });
+
+function updateChatTitle(title) {
+    const chatTitle = document.querySelector('.chat-title h4');
+    chatTitle.textContent = title;
+}
+
+function clearChat() {
+    // Remove all messages except welcome message
+    const messages = chatContainerEl.querySelectorAll('.chat-message');
+    messages.forEach(msg => msg.remove());
+    
+    // Show welcome message
+    const welcomeMessage = document.querySelector('.welcome-message');
+    if (welcomeMessage) {
+        welcomeMessage.style.display = 'flex';
+    }
+}
+
+function showLoading() {
+    loadingOverlay.classList.add('show');
+}
+
+function hideLoading() {
+    loadingOverlay.classList.remove('show');
+}
 
 function showTypingIndicator() {
     const typingDiv = document.createElement('div');
@@ -179,4 +266,63 @@ inputEl.addEventListener('input', () => {
 });
 
 // Initial scroll to bottom
-scrollToBottom(); 
+scrollToBottom();
+
+// Initialize model selection
+function initializeModelSelection() {
+    const currentModel = getCurrentModel();
+    modelSelect.value = currentModel;
+    currentModelDisplay.textContent = OLLAMA_CONFIG.models[currentModel] || currentModel;
+}
+
+// Model selection modal functionality
+settingsBtn.addEventListener('click', () => {
+    modelModal.style.display = 'block';
+    initializeModelSelection();
+});
+
+closeModelModal.addEventListener('click', () => {
+    modelModal.style.display = 'none';
+});
+
+cancelModelBtn.addEventListener('click', () => {
+    modelModal.style.display = 'none';
+});
+
+saveModelBtn.addEventListener('click', () => {
+    const selectedModel = modelSelect.value;
+    if (setCurrentModel(selectedModel)) {
+        currentModelDisplay.textContent = OLLAMA_CONFIG.models[selectedModel] || selectedModel;
+        modelModal.style.display = 'none';
+        // Show success message
+        showNotification('Model updated successfully!', 'success');
+    } else {
+        showNotification('Invalid model selection!', 'error');
+    }
+});
+
+// Close modal when clicking outside
+window.addEventListener('click', (e) => {
+    if (e.target === modelModal) {
+        modelModal.style.display = 'none';
+    }
+});
+
+// Notification function
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 100);
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+} 
